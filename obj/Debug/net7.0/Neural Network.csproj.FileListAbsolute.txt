@@ -1,0 +1,15 @@
+C:\Users\konis\source\repos\Neural Network\bin\Debug\net7.0\Neural Network.exe
+C:\Users\konis\source\repos\Neural Network\bin\Debug\net7.0\Neural Network.deps.json
+C:\Users\konis\source\repos\Neural Network\bin\Debug\net7.0\Neural Network.runtimeconfig.json
+C:\Users\konis\source\repos\Neural Network\bin\Debug\net7.0\Neural Network.dll
+C:\Users\konis\source\repos\Neural Network\bin\Debug\net7.0\Neural Network.pdb
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.csproj.AssemblyReference.cache
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.AssemblyInfoInputs.cache
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.AssemblyInfo.cs
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.csproj.CoreCompileInputs.cache
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.dll
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\refint\Neural Network.dll
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.pdb
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\Neural Network.genruntimeconfig.cache
+C:\Users\konis\source\repos\Neural Network\obj\Debug\net7.0\ref\Neural Network.dll
