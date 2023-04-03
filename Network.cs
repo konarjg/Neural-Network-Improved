@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 public class Layer
@@ -52,14 +54,26 @@ public class Layer
 public class Network
 {
     public Layer InputLayer;
-    public Layer HiddenLayer;
+    public Layer[] HiddenLayers;
     public Layer OutputLayer;
 
-    public Network(int inputNeurons, int outputNeurons, int hiddenNeurons)
+    public Network(int inputNeurons, int outputNeurons, params int[] hiddenNeurons)
     {
         InputLayer = new Layer(inputNeurons, null);
-        HiddenLayer = new Layer(hiddenNeurons, InputLayer);
-        OutputLayer = new Layer(outputNeurons, HiddenLayer);
+
+        if (hiddenNeurons.Length == 0)
+            OutputLayer = new Layer(outputNeurons, InputLayer);
+        else
+        {
+            HiddenLayers = new Layer[hiddenNeurons.Length];
+
+            HiddenLayers[0] = new Layer(hiddenNeurons[0], InputLayer);
+
+            for (int i = 1; i < hiddenNeurons.Length; ++i)
+                HiddenLayers[i] = new Layer(hiddenNeurons[i], HiddenLayers[i - 1]);
+
+            OutputLayer = new Layer(outputNeurons, HiddenLayers[hiddenNeurons.Length - 1]);
+        }
     }
 
     private double Elu(double x)
@@ -90,7 +104,7 @@ public class Network
         for (int x = 0; x < u.Rows; ++x)
         {
             for (int y = 0; y < u.Columns; ++y)
-                A[x, y] = (A[x, y] > 0 ? 1 : Math.Exp(A[x, y]));
+                A[x, y] = (u[x, y] > 0 ? 1 : Math.Exp(u[x, y]));
         }
 
         return A;
@@ -101,65 +115,184 @@ public class Network
         if (input.Rows != InputLayer.Neurons)
             throw new ArgumentOutOfRangeException();
 
-        var y1 = Elu(HiddenLayer.Weights * input + HiddenLayer.Biases);
-        var y = OutputLayer.Weights * y1 + OutputLayer.Biases;
+        var y = Elu(HiddenLayers[0].Weights * input + HiddenLayers[0].Biases);
+        
+        for (int i = 1; i < HiddenLayers.Length; ++i)
+            y = Elu(HiddenLayers[i].Weights * y + HiddenLayers[i].Biases);
+
+        y = OutputLayer.Weights * y + OutputLayer.Biases;
 
         return y;
     }
 
-    public void Train(Matrix[] inputs, double[] expectedOutputs, double learningRate, double momentum, int epochs)
+    public Matrix[] CalculateActivations(Matrix input)
     {
-        if (inputs.Length != expectedOutputs.Length)
-            throw new ArgumentException();
+        if (input.Rows != InputLayer.Neurons)
+            throw new ArgumentOutOfRangeException();
 
-        for (int epoch = 0; epoch < epochs; ++epoch)
+        var result = new List<Matrix>();
+        result.Add(input);
+
+        var y = Elu(HiddenLayers[0].Weights * input + HiddenLayers[0].Biases);
+        result.Add(y);
+
+        for (int i = 1; i < HiddenLayers.Length; ++i)
         {
-            var W3 = OutputLayer.Weights;
-            var W2 = HiddenLayer.Weights;
-            var B2 = HiddenLayer.Biases;
-
-            Matrix dW3 = null;
-            Matrix dB3 = null;
-            Matrix dW2 = null;
-            Matrix dB2 = null;
-
-            Console.WriteLine("-------------------");
-            Console.WriteLine("Epoch {0}: ", epoch + 1);
-
-            for (int i = 0; i < inputs.Length; ++i)
-            {
-                var input = inputs[i];
-                var output = Calculate(input);
-                var epsilon = output[0, 0] - expectedOutputs[i];
-               
-                Console.WriteLine("{0} + {1} = {2}, Błąd: {3}%", input[0, 0], input[1, 0], output[0, 0], Math.Abs(Math.Round((output[0, 0] - expectedOutputs[i]) / output[0, 0], 3)));
-
-                var y1 = Elu(W2 * input + B2);
-                var delta3 = epsilon;
-                var delta2 = (!W3 * delta3) % dElu(W2 * input + B2);
-
-                if (i == 0)
-                {
-                    dW3 = !y1 * delta3;
-                    dW2 = !input ^ delta2;
-                    dB3 = new Matrix(new double[,] { { delta3 } });
-                    dB2 = delta2;
-                }
-                else
-                {
-                    dW3 += !y1 * delta3;
-                    dW2 += !input ^ delta2;
-                    dB3 += new Matrix(new double[,] { { delta3 } });
-                    dB2 += delta2;
-                }
-            }
-
-            HiddenLayer.AdjustWeights(dW2 / inputs.Length, (learningRate + momentum));
-            OutputLayer.AdjustWeights(dW3 / inputs.Length, (learningRate + momentum));
-            HiddenLayer.AdjustBiases(dB2 / inputs.Length, (learningRate + momentum));
-            OutputLayer.AdjustBiases(dB3 / inputs.Length, (learningRate + momentum));
+            y = Elu(HiddenLayers[i].Weights * y + HiddenLayers[i].Biases);
+            result.Add(y);
         }
 
-        Console.WriteLine("");
+        y = OutputLayer.Weights * y + OutputLayer.Biases;
+        result.Add(y);
+
+        return result.ToArray();
+    }
+
+    public Task Train(Matrix[] inputs, Matrix[] expectedOutputs, double learningRate, double momentum, int epochs, string trainingOutputFilePath)
+    {
+        return Task.Factory.StartNew(() =>
+        {
+            if (inputs.Length != expectedOutputs.Length)
+                throw new ArgumentException();
+
+            var text = "";
+
+            for (int epoch = 0; epoch < epochs; ++epoch)
+            {
+                var W3 = OutputLayer.Weights;
+
+                Matrix dW3 = null;
+                Matrix dB3 = null;
+                Matrix[] dW2 = new Matrix[HiddenLayers.Length];
+                Matrix[] dB2 = new Matrix[HiddenLayers.Length];
+
+                var error = new Matrix(OutputLayer.Neurons, 1);
+
+                for (int i = 0; i < error.Rows; ++i)
+                    error[i, 0] = 0;
+
+                for (int i = 0; i < inputs.Length; ++i)
+                    error += Calculate(inputs[i]) - expectedOutputs[i];
+
+                text += string.Format("\nEpoch {0}: {1}\n", epoch + 1, error);
+              
+                for (int i = 0; i < inputs.Length; ++i)
+                {
+                    var input = inputs[i];
+                    var output = Calculate(input);
+                    var activations = CalculateActivations(input);
+                    var epsilon = output - expectedOutputs[i];
+
+                    var delta3 = epsilon;
+                    var delta2 = new Matrix[HiddenLayers.Length];
+
+                    int k = activations.Length - 3;
+                    delta2[HiddenLayers.Length - 1] = (!W3 * delta3) % dElu(HiddenLayers[HiddenLayers.Length - 1].Weights * activations[k] + HiddenLayers[HiddenLayers.Length - 1].Biases);
+                    --k;
+
+                    for (int j = HiddenLayers.Length - 2; j >= 0; --j)
+                    {
+                        delta2[j] = (!HiddenLayers[j + 1].Weights * delta2[j + 1]) % dElu(HiddenLayers[j].Weights * activations[k] + HiddenLayers[j].Biases);
+                        --k;
+                    }
+
+                    if (i == 0)
+                    {
+                        dW3 = !activations[activations.Length - 2] ^ delta3;
+                        dB3 = delta3;
+                        k = activations.Length - 3;
+
+                        for (int j = HiddenLayers.Length - 1; j >= 0; --j)
+                        {
+                            dW2[j] = !activations[k] ^ delta2[j];
+                            dB2[j] = delta2[j];
+                            --k;
+                        }
+                    }
+                    else
+                    {
+                        dW3 += !activations[activations.Length - 2] ^ delta3;
+                        dB3 += delta3;
+                        k = activations.Length - 3;
+
+                        for (int j = HiddenLayers.Length - 1; j >= 0; --j)
+                        {
+                            dW2[j] += !activations[k] ^ delta2[j];
+                            dB2[j] += delta2[j];
+                            --k;
+                        }
+                    }
+                }
+
+                for (int j = HiddenLayers.Length - 1; j >= 0; --j)
+                {
+                    HiddenLayers[j].AdjustWeights(dW2[j] / inputs.Length, (learningRate + momentum));
+                    HiddenLayers[j].AdjustBiases(dB2[j] / inputs.Length, (learningRate + momentum));
+                }
+
+                OutputLayer.AdjustWeights(dW3 / inputs.Length, (learningRate + momentum));
+                OutputLayer.AdjustBiases(dB3 / inputs.Length, (learningRate + momentum));
+            }
+
+            Console.WriteLine("Training finished!");
+
+            File.WriteAllText(trainingOutputFilePath, text);
+        });
+    }
+
+    public void SaveState(string path)
+    {
+        var text = "";
+
+        for (int i = 0; i < HiddenLayers.Length; ++i)
+            text += HiddenLayers[i].Weights + "!\n";
+
+        text += OutputLayer.Weights + "!\n";
+
+        for (int i = 0; i < HiddenLayers.Length; ++i)
+            text += HiddenLayers[i].Biases + "!\n";
+
+        text += OutputLayer.Biases + "!\n";
+
+        File.WriteAllText(path, text);
+    }
+
+    public void LoadState(string path)
+    {
+        var lines = File.ReadAllLines(path);
+        var matrices = new List<string>();
+
+        var m = "";
+
+        for (int i = 0; i < lines.Length; ++i)
+        {
+            if (lines[i].Contains("!"))
+            {
+                matrices.Add(m);
+                m = "";
+                continue;
+            }
+
+            m += lines[i] + "\n";
+        }
+
+        int j = 0;
+
+        for (int i = 0; i < HiddenLayers.Length; ++i)
+        {
+            HiddenLayers[i].Weights = Matrix.Parse(matrices[j]);
+            ++j;
+        }
+
+        OutputLayer.Weights = Matrix.Parse(matrices[j]);
+        ++j;
+
+        for (int i = 0; i < HiddenLayers.Length; ++i)
+        {
+            HiddenLayers[i].Biases = Matrix.Parse(matrices[j]);
+            ++j;
+        }
+
+        OutputLayer.Biases = Matrix.Parse(matrices[j]);
     }
 }

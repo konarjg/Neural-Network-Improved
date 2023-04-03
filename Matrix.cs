@@ -31,7 +31,7 @@ public class Matrix
         for (int x = 0; x < Rows; ++x)
         {
             for (int y = 0; y < Columns; ++y)
-                Values[x, y] = 0.1d + y * Math.Pow(-1, x);
+                Values[x, y] = 0.1f + x * Math.Pow(-1, y);
         }
     }
 
@@ -77,6 +77,38 @@ public class Matrix
         }
 
         return s;
+    }
+
+    public static Matrix Parse(string m)
+    {
+        m = m.Replace("|", "");
+
+        var reader = new StringReader(m);
+        var line = "";
+        var elements = new List<double>();
+
+        int rows = 0;
+        int columns = 0;
+
+        while ((line = reader.ReadLine()) != null)
+        {
+            var row = line.Split(' ');
+            columns = row.Length;
+            ++rows;
+
+            for (int i = 0; i < row.Length; ++i)
+                elements.Add(double.Parse(row[i]));
+        }
+
+        var A = new Matrix(rows, columns);
+
+        for (int x = 0; x < rows; ++x)
+        {
+            for (int y = 0; y < columns; ++y)
+                A[x, y] = elements[x * columns + y];
+        }
+
+        return A;
     }
 
     #region Operations
