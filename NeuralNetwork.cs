@@ -14,7 +14,51 @@ public enum Activation
     SOFTMAX
 }
 
-public class ClassificationModel
+public class Layer
+{
+    public int Neurons { private set; get; }
+    public Matrix Weights;
+    public Matrix Biases;
+
+    public Layer(int neurons, Layer previous)
+    {
+        Neurons = neurons;
+
+        if (previous != null)
+        {
+            Weights = new Matrix(neurons, previous.Neurons);
+            Biases = new Matrix(neurons, 1);
+
+            Weights.FillRandomly();
+            Biases.FillRandomly();
+        }
+        else
+        {
+            Weights = new Matrix(0, 0);
+            Biases = new Matrix(0, 0);
+        }
+    }
+
+    public void AdjustWeights(Matrix gradient, double learningRate)
+    {
+        for (int x = 0; x < Weights.Rows; ++x)
+        {
+            for (int y = 0; y < Weights.Columns; ++y)
+                Weights[x, y] -= learningRate * gradient[x, y];
+        }
+    }
+
+    public void AdjustBiases(Matrix gradient, double learningRate)
+    {
+        for (int x = 0; x < Biases.Rows; ++x)
+        {
+            for (int y = 0; y < Biases.Columns; ++y)
+                Biases[x, y] -= learningRate * gradient[x, y];
+        }
+    }
+}
+
+public class NeuralNetwork
 {
     public Layer InputLayer;
     public Layer[] HiddenLayers;
@@ -22,7 +66,7 @@ public class ClassificationModel
     public Activation Activation;
     public Activation OutputActivation;
 
-    public ClassificationModel(Activation activation, Activation outputActivation, int inputNeurons, int outputNeurons, params int[] hiddenNeurons)
+    public NeuralNetwork(Activation activation, Activation outputActivation, int inputNeurons, int outputNeurons, params int[] hiddenNeurons)
     {
         Activation = activation;
         OutputActivation = outputActivation;

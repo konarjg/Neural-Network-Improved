@@ -206,7 +206,7 @@ static class Program
         File.WriteAllText("data.txt", data);
     }
 
-    private static async void Train(ClassificationModel network)
+    private static async void Train(NeuralNetwork network)
     {
         if (!File.Exists("data.txt"))
             PrepareTrainingSet();
@@ -285,7 +285,7 @@ static class Program
 
     public static void Main(string[] args)
     {
-        var network = new ClassificationModel(Activation.SIGMOID, Activation.LINEAR, 20, 1, 10, 5);
+        var network = new NeuralNetwork(Activation.SIGMOID, Activation.LINEAR, 20, 1, 10, 5);
 
         /*Train(network);
 
