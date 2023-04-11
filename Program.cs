@@ -191,16 +191,17 @@ static class Program
         data += string.Format("2*cos(2*x) 2\n");
         data += string.Format("2*exp(2*x) 2\n");
         data += string.Format("2*atan(x) 3\n");
-        data += string.Format("2*acot(x) 3\n");
-        data += string.Format("2*asin(x) 3\n");
-        data += string.Format("2*acos(x) 3\n");
         data += string.Format("2*ln(x) 3\n");
         data += string.Format("2*x^2*exp(x) 3\n");
         data += string.Format("2*x^2*sin(x) 3\n");
         data += string.Format("2*x^2*cos(x) 3\n");
+        data += string.Format("2*exp(x)*cos(x) 3\n");
+        data += string.Format("2*exp(x)*sin(x) 3\n");
         data += string.Format("2*x/2*x^2 4\n");
-        data += string.Format("(sin(x))^2 5\n");
-        data += string.Format("(cos(x))^2 5\n");
+        data += string.Format("1/(x^2+1) 4\n");
+        data += string.Format("1/(2*x^3+2*x+1) 4\n");
+        data += string.Format("sin(x)^2 5\n");
+        data += string.Format("cos(x)^2 5\n");
         data += string.Format("sin(x)*cos(x) 5\n");
 
         File.WriteAllText("data.txt", data);
@@ -208,8 +209,7 @@ static class Program
 
     private static async void Train(NeuralNetwork network)
     {
-        if (!File.Exists("data.txt"))
-            PrepareTrainingSet();
+        PrepareTrainingSet();
 
         var dataDecoded = File.ReadAllLines("data.txt");
 
@@ -309,7 +309,6 @@ static class Program
             if (Math.Round(prediction[0, 0]) != output[0, 0])
                 ++errors;
 
-            Console.WriteLine("|{0} dx -> {1}/{2} -> {3}", input, Math.Round(prediction[0, 0]), output[0, 0], ToMethod(prediction));
             mean += (prediction[0, 0] - output[0, 0]) / prediction[0, 0];
         }
 
@@ -327,18 +326,17 @@ static class Program
 
         variance /= dataDecoded.Length - 1;
 
-        Console.WriteLine("\nDokładność: {0}%", accuracy * 100);
+        Console.WriteLine("Dokładność: {0}%", accuracy * 100);
         Console.WriteLine("Średni błąd: {0}%", Math.Abs(mean) * 100);
         Console.WriteLine("Wariancja: {0}", variance);
-        Console.WriteLine("Odchylenie standardowe: {0}", Math.Sqrt(variance));
+        Console.WriteLine("Odchylenie standardowe: {0}\n", Math.Sqrt(variance));
 
         do
         {
-            Console.Write("\nPodaj całkę: ");
-            var integral = Console.ReadLine();
+            Console.Write("Podaj całkę: ");
 
+            var integral = Console.ReadLine();
             Console.WriteLine("|{0} dx -> {1}", integral, ToMethod(network.Calculate(Encode(integral, 20))));
-            Console.WriteLine("Czy podana metoda jest poprawna? Jeśli nie podaj poprawną metodę: \n1 - całka podstawowa\n2 - całka przez podstawianie\n3 - całka przez części");
         }
         while (Console.ReadKey().Key != ConsoleKey.Escape);
     }
