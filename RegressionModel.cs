@@ -51,13 +51,13 @@ public class Layer
     }
 }
 
-public class Network
+public class RegressionModel
 {
     public Layer InputLayer;
     public Layer[] HiddenLayers;
     public Layer OutputLayer;
 
-    public Network(int inputNeurons, int outputNeurons, params int[] hiddenNeurons)
+    public RegressionModel(int inputNeurons, int outputNeurons, params int[] hiddenNeurons)
     {
         InputLayer = new Layer(inputNeurons, null);
 
@@ -116,7 +116,7 @@ public class Network
             throw new ArgumentOutOfRangeException();
 
         var y = Elu(HiddenLayers[0].Weights * input + HiddenLayers[0].Biases);
-        
+
         for (int i = 1; i < HiddenLayers.Length; ++i)
             y = Elu(HiddenLayers[i].Weights * y + HiddenLayers[i].Biases);
 
@@ -134,6 +134,7 @@ public class Network
         result.Add(input);
 
         var y = Elu(HiddenLayers[0].Weights * input + HiddenLayers[0].Biases);
+
         result.Add(y);
 
         for (int i = 1; i < HiddenLayers.Length; ++i)
@@ -174,7 +175,10 @@ public class Network
                 for (int i = 0; i < inputs.Length; ++i)
                     error += Calculate(inputs[i]) - expectedOutputs[i];
 
+                error = error / (double)inputs.Length;
+
                 text += string.Format("\nEpoch {0}: {1}\n", epoch + 1, error);
+                Console.WriteLine("Epoch {0}: {1}", epoch + 1, error);
               
                 for (int i = 0; i < inputs.Length; ++i)
                 {
@@ -188,11 +192,13 @@ public class Network
 
                     int k = activations.Length - 3;
                     delta2[HiddenLayers.Length - 1] = (!W3 * delta3) % dElu(HiddenLayers[HiddenLayers.Length - 1].Weights * activations[k] + HiddenLayers[HiddenLayers.Length - 1].Biases);
+                  
                     --k;
 
                     for (int j = HiddenLayers.Length - 2; j >= 0; --j)
                     {
                         delta2[j] = (!HiddenLayers[j + 1].Weights * delta2[j + 1]) % dElu(HiddenLayers[j].Weights * activations[k] + HiddenLayers[j].Biases);
+
                         --k;
                     }
 

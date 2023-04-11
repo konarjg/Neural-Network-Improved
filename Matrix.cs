@@ -31,7 +31,7 @@ public class Matrix
         for (int x = 0; x < Rows; ++x)
         {
             for (int y = 0; y < Columns; ++y)
-                Values[x, y] = 0.1f + x * Math.Pow(-1, y);
+                Values[x, y] = 0.1f * x + x * Math.Pow(-1, y);
         }
     }
 
@@ -76,7 +76,7 @@ public class Matrix
             s += "|\n";
         }
 
-        return s;
+        return s.Remove(s.Length - 1);
     }
 
     public static Matrix Parse(string m)
